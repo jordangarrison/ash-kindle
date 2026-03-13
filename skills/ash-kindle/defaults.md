@@ -34,9 +34,16 @@ For **single app** projects, the same config goes in the app's `mix.exs`.
 
 | Package | Version | Where | Env |
 |---------|---------|-------|-----|
+| `plug` | `~> 1.19` | app (resolves tidewave/ash_json_api conflict) | all envs |
+| `ash` | `~> 3.0` | core app (umbrella) or app | all envs |
+| `ash_phoenix` | `~> 2.0` | web app (umbrella) or app | all envs |
+| `ash_postgres` | `~> 2.0` | core app (umbrella) or app | all envs |
+| `ash_ai` | `~> 0.5` | core app (umbrella) or app | all envs |
 | `usage_rules` | `~> 1.2` | root (umbrella) or app | `:dev` only, `runtime: false` |
 | `tidewave` | `~> 0.5` | web app (umbrella) or app | `:dev` only |
-| `ash_ai` | `~> 0.5` | core app (umbrella) or app | all envs |
+
+**Note:** The explicit `plug` dep is required to resolve a `:only` env conflict
+between `tidewave` (only: :dev) and `ash_json_api` (transitive via `ash_ai`).
 
 ## Tidewave
 
@@ -76,8 +83,18 @@ the deps serve (e.g., "scraper-pipeline", "api-client", etc.).
 ### Always installed externally:
 
 ```bash
-npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices
+npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices --yes
 ```
+
+## devbox
+
+When devbox is detected or opted in, default PostgreSQL config:
+
+- **Port:** `5433` (avoids conflict with system PostgreSQL on 5432)
+- **Socket directory:** `.devbox/virtenv/postgresql`
+- **init_hook:** auto-runs `initdb`, creates `postgres` role, sets password on first shell
+- **process-compose.yml:** overrides plugin default with custom port + socket path
+- **Convenience scripts:** `db:start`, `db:stop`
 
 ## direnv
 
@@ -86,5 +103,13 @@ Skipped by default. When opted in:
 ```bash
 # .envrc
 use flake
+dotenv_if_exists
+```
+
+When using devbox with direnv, use `use devbox` instead of `use flake`:
+
+```bash
+# .envrc (with devbox)
+use devbox
 dotenv_if_exists
 ```

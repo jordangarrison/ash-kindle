@@ -4,10 +4,27 @@ Detailed reference for each setup step. The skill reads this for implementation 
 
 ## Prerequisites
 
-- An Ash/Phoenix project (new or existing)
+- An Ash/Phoenix project (new or existing) — or an empty directory to create one in
 - Claude Code installed
 - Hex packages available (`mix deps.get` works)
 - Node.js/npx available (for installing external skills)
+
+## 0. Creating a New Project (if needed)
+
+If no `mix.exs` exists in the directory, create a new Phoenix project:
+
+```bash
+# Install the Phoenix generator
+mix archive.install hex phx_new --force
+
+# Create project in current directory (yes | to auto-confirm existing dir)
+yes | mix phx.new . --app my_app
+```
+
+Key notes:
+- The `yes |` prefix auto-confirms the "directory already exists" prompt
+- Single app is recommended to start — umbrella can be migrated to later
+- Ash's domain/resource architecture provides strong separation within a single app
 
 ## 1. Dependency Installation
 
@@ -58,17 +75,34 @@ end
 
 ### Single App Projects
 
-All three deps go in the single `mix.exs`:
+All deps go in the single `mix.exs`:
 ```elixir
 defp deps do
   [
     # ... existing deps
+
+    # Explicit plug to resolve tidewave/ash_json_api env conflict
+    {:plug, "~> 1.19"},
+
+    # Ash
+    {:ash, "~> 3.0"},
+    {:ash_phoenix, "~> 2.0"},
+    {:ash_postgres, "~> 2.0"},
+    {:ash_ai, "~> 0.5"},
+
+    # AI dev tooling
     {:usage_rules, "~> 1.2", only: :dev, runtime: false},
-    {:tidewave, "~> 0.5", only: :dev},
-    {:ash_ai, "~> 0.5"}
+    {:tidewave, "~> 0.5", only: :dev}
   ]
 end
 ```
+
+### Known Issue: `plug` Dependency Conflict
+
+When `tidewave` (only: :dev) and `ash_ai` (which transitively brings in
+`ash_json_api`) are both present, Mix reports a `:only` option conflict on
+the `plug` dependency. Adding an explicit `{:plug, "~> 1.19"}` without an
+`:only` restriction resolves this.
 
 And add to `project/0`:
 ```elixir
@@ -183,7 +217,7 @@ running in dev, Tidewave provides these tools:
 
 The CLAUDE.md file has two parts:
 1. **Hand-written sections** (project-specific guidance)
-2. **Generated sections** (appended by `mix usage_rules.gen`)
+2. **Generated sections** (appended by `mix usage_rules.sync`)
 
 ### Hand-written sections for all projects:
 
@@ -237,8 +271,12 @@ After all configuration is in place:
 
 ```bash
 mix deps.get
-mix usage_rules.gen
+mix usage_rules.sync --yes
 ```
+
+**Important:** The task is `usage_rules.sync`, NOT `usage_rules.gen`. The `--yes`
+flag auto-accepts igniter's confirmation prompt, which is required for non-interactive
+execution (igniter will error on EOF if it tries to prompt without `--yes`).
 
 This generates:
 - Usage rules content appended to CLAUDE.md (between `<!-- usage-rules-start -->` and `<!-- usage-rules-end -->` markers)
@@ -249,15 +287,118 @@ This generates:
 Install the logging best practices skill:
 
 ```bash
-npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices
+npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices --yes
 ```
+
+**Important:** The `--yes` flag auto-selects default agents. Without it, the CLI
+prompts interactively for which agents to install to, which will hang in
+non-interactive execution.
 
 This provides Claude with guidance on the wide events / canonical log lines pattern
 referenced in the CLAUDE.md Logging section.
 
-## 8. direnv / Nix (Optional)
+## 8. devbox Setup (Optional)
 
-For Nix users, create `.envrc`:
+If the project uses devbox (has a `devbox.json`), PostgreSQL can be managed as a
+devbox service. This avoids requiring a system-wide PostgreSQL installation.
+
+### Add PostgreSQL package
+
+```bash
+devbox add postgresql
+```
+
+If devbox warns about "legacy format", run `devbox update` to migrate the config.
+
+### Configure custom port
+
+Port 5432 is commonly used by a system PostgreSQL. Use a different port (e.g., 5433)
+to avoid conflicts. Configure via the `env` section in `devbox.json`:
+
+```json
+{
+  "packages": [
+    "elixir@1.18.1",
+    "erlang@27.2",
+    "nodejs@25.8.0",
+    "postgresql@latest"
+  ],
+  "env": {
+    "PGPORT": "5433",
+    "PGHOST": ".devbox/virtenv/postgresql"
+  },
+  "shell": {
+    "init_hook": [
+      "if [ ! -d \"$PGDATA\" ]; then initdb && createuser -h $PGHOST -p $PGPORT -s postgres && psql -h $PGHOST -p $PGPORT -U $(whoami) -d postgres -c \"ALTER USER postgres WITH PASSWORD 'postgres';\"; fi"
+    ],
+    "scripts": {
+      "db:start": "devbox services start postgresql",
+      "db:stop": "devbox services stop postgresql"
+    }
+  }
+}
+```
+
+The `init_hook` automatically bootstraps the database on first `devbox shell` entry:
+- Runs `initdb` if the data directory doesn't exist
+- Creates a `postgres` superuser role
+- Sets the password to `postgres` (matching Phoenix dev defaults)
+
+### Override process-compose for PostgreSQL
+
+The devbox PostgreSQL plugin generates a `process-compose.yaml` that uses default
+port/socket paths. Create a root `process-compose.yml` to override with custom settings:
+
+```yaml
+version: "0.5"
+
+processes:
+  postgresql:
+    command: "pg_ctl start -o \"-k $PGHOST -p $PGPORT\""
+    is_daemon: true
+    shutdown:
+      command: "pg_ctl stop -m fast"
+    availability:
+      restart: "always"
+    readiness_probe:
+      exec:
+        command: "pg_isready -h $PGHOST -p $PGPORT"
+```
+
+**Critical:** The PostgreSQL socket directory (`-k` flag) MUST point to the devbox
+virtenv path. The default `/run/postgresql/` is not writable by non-root users and
+will cause a "Permission denied" error on the lock file.
+
+### Update Phoenix dev config
+
+Add the matching port to `config/dev.exs`:
+
+```elixir
+config :my_app, MyApp.Repo,
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  port: 5433,
+  database: "my_app_dev",
+  # ...
+```
+
+### Usage
+
+```bash
+devbox shell              # enters shell, runs init_hook on first use
+devbox run db:start       # starts PostgreSQL on port 5433
+mix ecto.create           # creates the database
+mix phx.server            # starts the Phoenix app
+```
+
+## 9. direnv / Nix (Optional)
+
+direnv works well alongside devbox — use `use devbox` in `.envrc` to auto-activate
+the devbox environment when entering the directory. It also works with Nix flakes
+via `use flake`.
+
+Create `.envrc`:
 
 ```bash
 use flake
@@ -265,13 +406,21 @@ dotenv_if_exists
 ```
 
 This assumes:
-- A `flake.nix` exists with the Elixir/Erlang/Node toolchain
 - `direnv` is installed and hooked into the shell
+- For Nix: a `flake.nix` exists with the Elixir/Erlang/Node toolchain
+- For devbox: `devbox.json` exists (use `use devbox` instead of `use flake`)
 - The user may have a `.env` file for local secrets
 
-This step is skipped by default since Nix setup varies significantly per environment.
+When using devbox with direnv, the `.envrc` should be:
 
-## 9. Verification Checklist
+```bash
+use devbox
+dotenv_if_exists
+```
+
+This step is skipped by default since the setup varies per environment.
+
+## 10. Verification Checklist
 
 After setup, confirm:
 
@@ -282,5 +431,8 @@ After setup, confirm:
 - [ ] `.claude/skills/ash-framework/` directory exists with generated skill
 - [ ] `.mcp.json` exists with Tidewave config
 - [ ] `logging-best-practices` skill is installed
-- [ ] (If opted in) `.envrc` exists
+- [ ] (If devbox) `devbox.json` has PostgreSQL package, env vars, init_hook, and scripts
+- [ ] (If devbox) `process-compose.yml` exists with custom port/socket config
+- [ ] (If devbox) `config/dev.exs` has matching PostgreSQL port
+- [ ] (If direnv) `.envrc` exists
 - [ ] Starting the Phoenix server (`mix phx.server`) makes Tidewave available at the configured URL

@@ -21,15 +21,26 @@ Read skills/ash-kindle/defaults.md
 ## Step 1: Detect Project State
 
 Determine:
-- Is this a new or existing project?
+- Is this a new or existing project? (check for `mix.exs` in the directory)
 - Is it an umbrella or single app?
 - What is the OTP app name? (e.g., `my_app`)
 - What is the web app module? (e.g., `MyAppWeb`)
 - What Ash domains exist? (check `ash_domains` in config)
 - What Phoenix port is configured? (default 4000)
 - Are there domain-specific deps beyond Ash? (Oban, Req, LangChain, etc.)
+- Is devbox being used? (check for `devbox.json`)
 
 Use `mix.exs`, `config/config.exs`, and the project file structure to answer these.
+
+### If no project exists yet
+
+If the directory has no `mix.exs`, offer to create a new Phoenix project:
+
+1. Install the Phoenix generator: `mix archive.install hex phx_new --force`
+2. Create the project: `yes | mix phx.new . --app <app_name>`
+   - The `yes |` prefix is needed to auto-confirm the existing directory prompt
+3. Ask about structure (single app recommended — can migrate to umbrella later)
+4. Then proceed with the rest of the setup
 
 ## Step 2: Ask or Accept Defaults
 
@@ -43,7 +54,8 @@ Present the user with what you'll set up:
 > 4. **CLAUDE.md** — project instructions (Ash First, Feedback Loop, Logging)
 > 5. **Claude Code skills** — auto-generated from usage_rules config
 > 6. **logging-best-practices** — external skill for wide events pattern
-> 7. **direnv/.envrc** — optional Nix/direnv setup
+> 7. **devbox** — optional devbox setup with PostgreSQL service
+> 8. **direnv/.envrc** — optional Nix/direnv setup
 >
 > Want to customize any of these, or are defaults fine?
 
@@ -52,15 +64,27 @@ If the user says **defaults are fine**, proceed with all defaults from `defaults
 If the user wants to **customize**, ask about each piece one at a time:
 - Which usage_rules to include (`:elixir`, `:otp`, `:phoenix`, others?)
 - Which skills to build (default: `ash-framework`; suggest others based on detected deps)
+- Whether to include devbox setup (with PostgreSQL)
 - Whether to include direnv/Nix setup
 - Any additional CLAUDE.md sections
 
 ## Step 3: Install Dependencies
 
+### Known issue: `plug` dependency conflict
+
+When `tidewave` (only: :dev) and `ash_ai` (which brings in `ash_json_api`) are
+both present, there is a `:only` env conflict on the `plug` dependency. **You must
+add an explicit `plug` dependency** to resolve this:
+
+```elixir
+{:plug, "~> 1.19"}
+```
+
 ### For umbrella projects (root mix.exs):
 
 ```elixir
 # Add to deps in root mix.exs
+{:plug, "~> 1.19"},
 {:usage_rules, "~> 1.2", only: :dev, runtime: false}
 ```
 
@@ -76,6 +100,18 @@ If the user wants to **customize**, ask about each piece one at a time:
 ```elixir
 # Add to deps
 {:ash_ai, "~> 0.5"}
+```
+
+### For single app projects, all deps in one `mix.exs`:
+
+```elixir
+{:plug, "~> 1.19"},
+{:ash, "~> 3.0"},
+{:ash_phoenix, "~> 2.0"},
+{:ash_postgres, "~> 2.0"},
+{:ash_ai, "~> 0.5"},
+{:usage_rules, "~> 1.2", only: :dev, runtime: false},
+{:tidewave, "~> 0.5", only: :dev}
 ```
 
 Then run:
@@ -139,8 +175,12 @@ Leave space after the hand-written sections for usage_rules to append its genera
 ## Step 7: Generate Skills and CLAUDE.md Content
 
 ```bash
-mix usage_rules.gen
+mix usage_rules.sync --yes
 ```
+
+**Important:** The task is `usage_rules.sync`, not `usage_rules.gen`. The `--yes`
+flag is required for non-interactive execution (otherwise igniter prompts for
+confirmation on large diffs).
 
 This generates:
 - The usage_rules sections appended to CLAUDE.md
@@ -151,10 +191,28 @@ Verify the generated files look correct.
 ## Step 8: Install External Skills
 
 ```bash
-npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices
+npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices --yes
 ```
 
-## Step 9: Optional — direnv/Nix Setup
+**Important:** The `--yes` flag is required for non-interactive execution (otherwise
+it prompts for which agents to install to).
+
+## Step 9: Optional — devbox Setup
+
+If the user opted in (or `devbox.json` already exists), set up devbox with PostgreSQL.
+See `references/setup-guide.md` for full details.
+
+Key points:
+- Add `postgresql` package: `devbox add postgresql`
+- Run `devbox update` if warned about legacy format
+- Configure custom port in `devbox.json` `env` section (avoids conflicts with system PostgreSQL on 5432)
+- Create a root `process-compose.yml` to override the plugin's PostgreSQL process with custom port/socket
+- The `init_hook` should auto-run `initdb` and create the `postgres` role on first shell entry
+- Update `config/dev.exs` with matching port
+- The PostgreSQL socket directory must be set to the devbox virtenv path (the default
+  `/run/postgresql/` is not writable)
+
+## Step 10: Optional — direnv/Nix Setup
 
 If the user opted in, create `.envrc`:
 
@@ -165,7 +223,7 @@ dotenv_if_exists
 
 And note that they'll need a `flake.nix` appropriate for their Elixir/Phoenix setup.
 
-## Step 10: Verify
+## Step 11: Verify
 
 ```bash
 mix deps.get
