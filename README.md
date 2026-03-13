@@ -17,7 +17,7 @@ A Claude Code skill that sets up AI-assisted development tooling for [Ash](https
 ## Install
 
 ```bash
-npx @anthropic-ai/claude-code skills add https://github.com/jordangarrison/ash-kindle --skill ash-kindle
+npx skills add https://github.com/jordangarrison/ash-kindle --skill ash-kindle
 ```
 
 ## Usage

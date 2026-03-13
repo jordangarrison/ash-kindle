@@ -151,7 +151,7 @@ Verify the generated files look correct.
 ## Step 8: Install External Skills
 
 ```bash
-npx @anthropic-ai/claude-code skills add https://github.com/boristane/agent-skills --skill logging-best-practices
+npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices
 ```
 
 ## Step 9: Optional — direnv/Nix Setup

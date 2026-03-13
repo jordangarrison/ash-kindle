@@ -249,7 +249,7 @@ This generates:
 Install the logging best practices skill:
 
 ```bash
-npx @anthropic-ai/claude-code skills add https://github.com/boristane/agent-skills --skill logging-best-practices
+npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices
 ```
 
 This provides Claude with guidance on the wide events / canonical log lines pattern

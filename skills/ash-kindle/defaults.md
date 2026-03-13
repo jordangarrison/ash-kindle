@@ -76,7 +76,7 @@ the deps serve (e.g., "scraper-pipeline", "api-client", etc.).
 ### Always installed externally:
 
 ```bash
-npx @anthropic-ai/claude-code skills add https://github.com/boristane/agent-skills --skill logging-best-practices
+npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices
 ```
 
 ## direnv
