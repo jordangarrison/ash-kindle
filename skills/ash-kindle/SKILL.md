@@ -141,9 +141,11 @@ listeners: [Phoenix.CodeReloader],
 usage_rules: usage_rules()
 ```
 
-## Step 5: Wire Up Tidewave
+## Step 5: Wire Up MCP Servers
 
-In the web app's `endpoint.ex`, add the Tidewave plug **before** the router plug:
+### Tidewave
+
+In the web app's `endpoint.ex`, add the Tidewave plug **before** the `if code_reloading?` block:
 
 ```elixir
 if Code.ensure_loaded?(Tidewave) do
@@ -151,7 +153,40 @@ if Code.ensure_loaded?(Tidewave) do
 end
 ```
 
-Create `.mcp.json` in the project root:
+### Domain MCP (if Ash domains with resources exist)
+
+The domain MCP requires two pieces. See `references/setup-guide.md` for full details.
+
+**1. Endpoint plug:** Add `AshAi.Mcp.Dev` inside the `if code_reloading?` block in `endpoint.ex`, after `Phoenix.CodeReloader`:
+
+```elixir
+if code_reloading? do
+  socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
+  plug Phoenix.LiveReloader
+  plug Phoenix.CodeReloader
+  plug Phoenix.Ecto.CheckRepoStatus, otp_app: :my_app
+  plug AshAi.Mcp.Dev, otp_app: :my_app
+end
+```
+
+**2. Router scope:** Add a `/dev/mcp` scope inside the `if Application.compile_env(:my_app, :dev_routes)` guard in `router.ex`:
+
+```elixir
+scope "/dev/mcp" do
+  forward "/", AshAi.Mcp.Router,
+    tools: @mcp_tools,
+    otp_app: :my_app,
+    actor: %AshAi{}
+end
+```
+
+**3. Domain tools:** Add a `tools do` block in the Ash domain, and a `@mcp_tools` module attribute in the router listing exposed tool names. Ask the user which domain to wire first.
+
+If no Ash domains with resources exist yet, skip the domain MCP and just set up Tidewave.
+
+### .mcp.json
+
+Create `.mcp.json` in the project root. Include both servers if domain MCP was set up:
 
 ```json
 {
@@ -159,12 +194,16 @@ Create `.mcp.json` in the project root:
     "tidewave": {
       "type": "http",
       "url": "http://localhost:<port>/tidewave/mcp"
+    },
+    "<app_name>": {
+      "type": "http",
+      "url": "http://localhost:<port>/dev/mcp"
     }
   }
 }
 ```
 
-Replace `<port>` with the detected Phoenix port (default 4000).
+Replace `<port>` with the detected Phoenix port (default 4000) and `<app_name>` with the OTP app name. If domain MCP was skipped, omit the `<app_name>` entry.
 
 ## Step 6: Write CLAUDE.md
 

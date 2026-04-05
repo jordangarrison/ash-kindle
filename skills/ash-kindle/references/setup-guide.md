@@ -164,7 +164,7 @@ skills: [
 ## 3. Tidewave Endpoint Setup
 
 In the web app's `endpoint.ex`, add the Tidewave plug. It must go **before** the
-router plug but **after** static file serving:
+`if code_reloading?` block:
 
 ```elixir
 defmodule MyAppWeb.Endpoint do
@@ -177,6 +177,14 @@ defmodule MyAppWeb.Endpoint do
     plug Tidewave
   end
 
+  if code_reloading? do
+    socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
+    plug Phoenix.LiveReloader
+    plug Phoenix.CodeReloader
+    plug Phoenix.Ecto.CheckRepoStatus, otp_app: :my_app
+    plug AshAi.Mcp.Dev, otp_app: :my_app
+  end
+
   plug MyAppWeb.Router
 end
 ```
@@ -184,7 +192,68 @@ end
 The conditional `Code.ensure_loaded?/1` check ensures Tidewave is only loaded in dev
 where the dependency is available.
 
-## 4. MCP Configuration
+`AshAi.Mcp.Dev` goes inside the `code_reloading?` block — this is the conventional
+location for dev-only plugs in Phoenix endpoints, and the block is positioned before
+body parsers in the standard pipeline.
+
+## 4. Domain MCP Router Setup
+
+Add a `/dev/mcp` scope in `router.ex` inside the existing
+`if Application.compile_env(:my_app, :dev_routes)` guard:
+
+```elixir
+# Inside the existing dev_routes guard block
+scope "/dev/mcp" do
+  forward "/", AshAi.Mcp.Router,
+    tools: @mcp_tools,
+    otp_app: :my_app,
+    actor: %AshAi{}
+end
+```
+
+`%AshAi{}` is a struct provided by the `ash_ai` package that acts as an unrestricted
+actor — it bypasses all policy checks. This is safe because the route only exists when
+`dev_routes` is enabled.
+
+### Domain Tool Declarations
+
+Tools are declared in Ash domains using `tools do` blocks. The domain declares what
+tools exist; the router controls which are exposed via a `@mcp_tools` module attribute.
+
+```elixir
+# In the Ash domain (e.g., MyApp.Planning)
+use Ash.Domain, otp_app: :my_app, extensions: [AshAi]
+
+tools do
+  tool(:lookup_items, MyApp.Planning.Item, :read,
+    description: "Look up planning items by name or status."
+  )
+end
+```
+
+```elixir
+# In router.ex — module attribute listing exposed tools
+@mcp_tools [
+  :lookup_items
+]
+```
+
+### MCP Resources (optional)
+
+Domains can also expose browsable data via `mcp_resources`:
+
+```elixir
+mcp_resources do
+  mcp_resource(:active_items, "myapp://items/active",
+    MyApp.Planning.Item, :mcp_active_items,
+    title: "Active Items",
+    description: "All currently active items.",
+    mime_type: "application/json"
+  )
+end
+```
+
+## 5. MCP Configuration
 
 Create `.mcp.json` in the project root:
 
@@ -194,12 +263,20 @@ Create `.mcp.json` in the project root:
     "tidewave": {
       "type": "http",
       "url": "http://localhost:4000/tidewave/mcp"
+    },
+    "my_app": {
+      "type": "http",
+      "url": "http://localhost:4000/dev/mcp"
     }
   }
 }
 ```
 
-Adjust the port if the Phoenix app uses a non-standard port.
+Adjust the port if the Phoenix app uses a non-standard port. Omit the domain MCP
+entry if no Ash domains with resources exist.
+
+The domain MCP at `/dev/mcp` is only available when `dev_routes` is enabled. The
+`.mcp.json` is only used by Claude Code during local development, so this is fine.
 
 Claude Code reads this file to discover MCP servers. When the Phoenix server is
 running in dev, Tidewave provides these tools:
@@ -213,7 +290,10 @@ running in dev, Tidewave provides these tools:
 - `search_package_docs` — search hex package documentation
 - `get_docs` — get docs for specific modules/functions
 
-## 5. CLAUDE.md Template
+The domain MCP provides access to whatever tools are declared in your Ash domains
+(e.g., looking up resources, triggering actions).
+
+## 6. CLAUDE.md Template
 
 The CLAUDE.md file has two parts:
 1. **Hand-written sections** (project-specific guidance)
@@ -265,7 +345,7 @@ throughout a function.
 
 Replace `<core_app>` and `<web_app>` with actual app names.
 
-## 6. Generation
+## 7. Generation
 
 After all configuration is in place:
 
@@ -282,7 +362,7 @@ This generates:
 - Usage rules content appended to CLAUDE.md (between `<!-- usage-rules-start -->` and `<!-- usage-rules-end -->` markers)
 - Skill files in `.claude/skills/` based on the `build` config
 
-## 7. External Skills
+## 8. External Skills
 
 Install the logging best practices skill:
 
@@ -297,7 +377,7 @@ non-interactive execution.
 This provides Claude with guidance on the wide events / canonical log lines pattern
 referenced in the CLAUDE.md Logging section.
 
-## 8. devbox Setup (Optional)
+## 9. devbox Setup (Optional)
 
 If the project uses devbox (has a `devbox.json`), PostgreSQL can be managed as a
 devbox service. This avoids requiring a system-wide PostgreSQL installation.
@@ -392,7 +472,7 @@ mix ecto.create           # creates the database
 mix phx.server            # starts the Phoenix app
 ```
 
-## 9. direnv / Nix (Optional)
+## 10. direnv / Nix (Optional)
 
 direnv works well alongside devbox — use `use devbox` in `.envrc` to auto-activate
 the devbox environment when entering the directory. It also works with Nix flakes
@@ -420,7 +500,7 @@ dotenv_if_exists
 
 This step is skipped by default since the setup varies per environment.
 
-## 10. Verification Checklist
+## 11. Verification Checklist
 
 After setup, confirm:
 

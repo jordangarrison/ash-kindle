@@ -45,10 +45,37 @@ For **single app** projects, the same config goes in the app's `mix.exs`.
 **Note:** The explicit `plug` dep is required to resolve a `:only` env conflict
 between `tidewave` (only: :dev) and `ash_json_api` (transitive via `ash_ai`).
 
-## Tidewave
+## MCP Servers
+
+### Tidewave
 
 - Port: whatever Phoenix is configured to use (default `4000`)
 - MCP URL: `http://localhost:<port>/tidewave/mcp`
+
+### Domain MCP (default: yes if Ash domains detected)
+
+- Dev-only endpoint at `/dev/mcp`
+- Uses `AshAi.Mcp.Dev` plug in `endpoint.ex` (inside `code_reloading?` block)
+- Uses `AshAi.Mcp.Router` in `router.ex` (inside `dev_routes` guard)
+- Actor: `%AshAi{}` (bypasses auth for dev use)
+- MCP URL: `http://localhost:<port>/dev/mcp`
+
+### .mcp.json (with both servers)
+
+```json
+{
+  "mcpServers": {
+    "tidewave": {
+      "type": "http",
+      "url": "http://localhost:<port>/tidewave/mcp"
+    },
+    "<app_name>": {
+      "type": "http",
+      "url": "http://localhost:<port>/dev/mcp"
+    }
+  }
+}
+```
 
 ## CLAUDE.md Sections
 
