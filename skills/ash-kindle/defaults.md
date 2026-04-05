@@ -34,7 +34,7 @@ For **single app** projects, the same config goes in the app's `mix.exs`.
 
 | Package | Version | Where | Env |
 |---------|---------|-------|-----|
-| `plug` | `~> 1.19` | app (resolves tidewave/ash_json_api conflict) | all envs |
+| `plug` | `~> 1.19` | root (umbrella) or app (resolves tidewave/ash_json_api conflict) | all envs |
 | `ash` | `~> 3.0` | core app (umbrella) or app | all envs |
 | `ash_phoenix` | `~> 2.0` | web app (umbrella) or app | all envs |
 | `ash_postgres` | `~> 2.0` | core app (umbrella) or app | all envs |
