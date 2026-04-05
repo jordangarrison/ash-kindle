@@ -390,7 +390,82 @@ non-interactive execution.
 This provides Claude with guidance on the wide events / canonical log lines pattern
 referenced in the CLAUDE.md Logging section.
 
-## 9. devbox Setup (Optional)
+## 9. Browser Testing Setup (Optional)
+
+If the user opted in, generate a project-specific browser testing skill at
+`.claude/skills/browser-testing/SKILL.md`. This complements the generic
+`browser-testing-walkthrough` external skill (installed in step 8) with
+project-specific context.
+
+### Template
+
+````markdown
+---
+name: browser-testing
+description: Use when manually testing <app_name> features in the browser with GIF recording.
+---
+
+# Browser Testing — <AppName>
+
+## Navigation Map
+
+| Page | URL | Key Elements |
+|------|-----|--------------|
+| Home | http://localhost:<port>/ | Main landing page |
+| Dev Dashboard | http://localhost:<port>/dev/dashboard | Phoenix LiveDashboard |
+| Dev Mailbox | http://localhost:<port>/dev/mailbox | Email preview |
+| Dev MCP | http://localhost:<port>/dev/mcp | MCP server (verify with curl) |
+
+_Add your application-specific routes here._
+
+## Seed Data Reference
+
+Fill in your test users and seed data here. List names, roles, and any
+notable state (e.g., overallocated users, edge cases).
+
+Example format:
+| User | Role | Notable State |
+|------|------|---------------|
+| Alice | Admin | Full access |
+| Bob | Member | Limited permissions |
+
+## Tool Quick Reference
+
+| Action | Tool | Example |
+|--------|------|---------|
+| Go to URL | `navigate` | `navigate "http://localhost:<port>/"` |
+| Click element | `computer` | `left_click` at coordinates |
+| Capture frame | `screenshot` | Each screenshot = 1 GIF frame |
+| Zoom detail | `computer` | `region` + `zoom` (NOT a GIF frame) |
+| Find target | `find` | Natural language description |
+| Type text | `type` | Text input into focused field |
+
+## GIF Budget
+
+- **50 frames max** per recording
+- **8-10 frames** per flow for context
+- **3-5 flows** total per session
+- Use `zoom` freely — it doesn't consume frames
+
+## PR Comment Template
+
+```markdown
+## Browser Walkthrough
+
+**What was tested:**
+- [ ] Flow 1: [describe what you navigated and verified]
+- [ ] Flow 2: [describe what you navigated and verified]
+
+**Summary:** [Written description of what was validated and any issues found.
+Reviewers must understand what was tested without watching the GIF.]
+
+![Walkthrough](path/to/recording.gif)
+```
+````
+
+Replace `<app_name>`, `<AppName>`, and `<port>` with detected values.
+
+## 10. devbox Setup (Optional)
 
 If the project uses devbox (has a `devbox.json`), PostgreSQL can be managed as a
 devbox service. This avoids requiring a system-wide PostgreSQL installation.
@@ -485,7 +560,7 @@ mix ecto.create           # creates the database
 mix phx.server            # starts the Phoenix app
 ```
 
-## 10. direnv / Nix (Optional)
+## 11. direnv / Nix (Optional)
 
 direnv works well alongside devbox — use `use devbox` in `.envrc` to auto-activate
 the devbox environment when entering the directory. It also works with Nix flakes
@@ -513,7 +588,7 @@ dotenv_if_exists
 
 This step is skipped by default since the setup varies per environment.
 
-## 11. Verification Checklist
+## 12. Verification Checklist
 
 After setup, confirm:
 

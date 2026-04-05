@@ -241,10 +241,37 @@ Verify the generated files look correct.
 npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices --yes
 ```
 
+If the user opted in to browser testing:
+
+```bash
+npx skills add https://github.com/jordangarrison/superpowers --skill browser-testing-walkthrough --yes
+```
+
 **Important:** The `--yes` flag is required for non-interactive execution (otherwise
 it prompts for which agents to install to).
 
-## Step 9: Optional — devbox Setup
+## Step 9: Optional — Browser Testing Setup
+
+If the user opted in to browser testing (Step 2), generate a project-specific browser
+testing skill. The external skill (installed in Step 8) handles the generic workflow;
+this skill provides project-specific context.
+
+Create `.claude/skills/browser-testing/SKILL.md` with these sections:
+
+1. **Navigation Map** — table with Page, URL, Key Elements columns. Pre-fill with
+   detected routes (at minimum: `/`, `/dev/dashboard`, `/dev/mailbox`). Use the
+   detected Phoenix port.
+2. **Seed Data Reference** — placeholder: "Fill in your test users and seed data here.
+   List names, roles, and any notable state (e.g., overallocated users, edge cases)."
+3. **Tool Quick Reference** — condensed cheat sheet: navigate, click, screenshot,
+   zoom, find, type
+4. **GIF Budget** — 50 frames max, 8-10 per flow, 3-5 flows total
+5. **PR Comment Template** — requires a written summary of what was tested alongside
+   the GIF embed. Reviewers must understand what was validated without watching the GIF.
+
+See `references/setup-guide.md` for the full template.
+
+## Step 10: Optional — devbox Setup
 
 If the user opted in (or `devbox.json` already exists), set up devbox with PostgreSQL.
 See `references/setup-guide.md` for full details.
@@ -259,7 +286,7 @@ Key points:
 - The PostgreSQL socket directory must be set to the devbox virtenv path (the default
   `/run/postgresql/` is not writable)
 
-## Step 10: Optional — direnv/Nix Setup
+## Step 11: Optional — direnv/Nix Setup
 
 If the user opted in, create `.envrc`:
 
@@ -270,7 +297,7 @@ dotenv_if_exists
 
 And note that they'll need a `flake.nix` appropriate for their Elixir/Phoenix setup.
 
-## Step 11: Verify
+## Step 12: Verify
 
 ```bash
 mix deps.get
