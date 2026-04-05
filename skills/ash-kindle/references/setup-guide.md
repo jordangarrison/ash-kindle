@@ -601,12 +601,17 @@ After setup, confirm:
 - [ ] `mix deps.get` succeeds
 - [ ] `mix compile` succeeds with no warnings
 - [ ] `mix format --check-formatted` passes
-- [ ] `CLAUDE.md` exists with hand-written + generated sections
+- [ ] `CLAUDE.md` exists with hand-written + generated sections (including MCP Usage)
 - [ ] `.claude/skills/ash-framework/` directory exists with generated skill
 - [ ] `.mcp.json` exists with Tidewave config
+- [ ] (If domain MCP) `.mcp.json` also includes domain MCP entry
+- [ ] (If domain MCP) `AshAi.Mcp.Dev` is in `endpoint.ex` and `/dev/mcp` scope is in `router.ex`
 - [ ] `logging-best-practices` skill is installed
+- [ ] (If browser testing) `browser-testing-walkthrough` external skill is installed
+- [ ] (If browser testing) `.claude/skills/browser-testing/SKILL.md` exists with project-specific content
+- [ ] (If dev environment) `.envrc` exists with correct content for chosen tool (devenv/flake/devbox)
 - [ ] (If devbox) `devbox.json` has PostgreSQL package, env vars, init_hook, and scripts
 - [ ] (If devbox) `process-compose.yml` exists with custom port/socket config
 - [ ] (If devbox) `config/dev.exs` has matching PostgreSQL port
-- [ ] (If direnv) `.envrc` exists
 - [ ] Starting the Phoenix server (`mix phx.server`) makes Tidewave available at the configured URL
+- [ ] (If domain MCP) Domain MCP accessible at `/dev/mcp` when Phoenix server is running

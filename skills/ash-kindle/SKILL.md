@@ -304,9 +304,12 @@ mix format --check-formatted
 
 Confirm:
 - `mix compile` succeeds
-- CLAUDE.md has both hand-written and generated sections
+- CLAUDE.md has both hand-written and generated sections (including MCP Usage)
 - `.claude/skills/` contains generated skill files
-- `.mcp.json` exists with Tidewave config
+- `.mcp.json` exists with Tidewave config (and domain MCP config if set up)
 - Tidewave is accessible when the Phoenix server is running
+- (If domain MCP) Domain MCP accessible at `/dev/mcp` when Phoenix server is running
+- (If browser testing) Browser testing skill exists at `.claude/skills/browser-testing/SKILL.md`
+- (If dev environment) `.envrc` exists with correct content for chosen tool
 
 Report what was set up and any manual steps remaining.
