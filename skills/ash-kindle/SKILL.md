@@ -28,7 +28,9 @@ Determine:
 - What Ash domains exist? (check `ash_domains` in config)
 - What Phoenix port is configured? (default 4000)
 - Are there domain-specific deps beyond Ash? (Oban, Req, LangChain, etc.)
-- Is devbox being used? (check for `devbox.json`)
+- Which dev environment tool is in use? (check for `devenv.nix`, `flake.nix`, or `devbox.json`)
+- Is domain MCP already configured? (check for `AshAi.Mcp.Dev` in `endpoint.ex`, `"/dev/mcp"` in `router.ex`, and a non-tidewave entry in `.mcp.json` — if all three present, skip; if partially configured, warn the user and offer to complete setup)
+- Is browser testing already set up? (check for `.claude/skills/browser-testing/SKILL.md`)
 
 Use `mix.exs`, `config/config.exs`, and the project file structure to answer these.
 
