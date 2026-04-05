@@ -313,6 +313,16 @@ search docs with `mix usage_rules.search_docs`.
 Use `mix igniter.install` and Ash generators as a starting point wherever
 possible. Modify generated code rather than writing from scratch.
 
+## MCP Usage
+
+When the Phoenix server is running, prefer MCP tools over reading files
+for understanding application state:
+- Use domain MCP tools to look up existing resources, actions, and
+  relationships before writing new code
+- Use Tidewave `project_eval` to test expressions against the running app
+- Use Tidewave `get_ash_resources` / `get_ecto_schemas` to discover
+  what's already defined
+
 ## Feedback Loop
 
 After every change:
@@ -321,7 +331,10 @@ After every change:
 3. Run `mix credo --strict` — address all warnings
 4. Run `mix test` for affected modules
 5. Use Tidewave `project_eval` to verify runtime behaviour
-6. Use Ash AI MCP to verify resource/domain state
+6. Use domain MCP tools to verify resource/domain state
+
+If an MCP call fails or times out, the Phoenix server may not be running.
+Remind the user to start it with `mix phx.server`.
 
 If checks fail, self-correct and retry. After 5 failed attempts on the
 same issue, stop and summarise what was tried, then hand back to the human.

@@ -212,8 +212,9 @@ full template. The key sections are:
 
 - **Ash First** — always use Ash concepts, never raw Ecto
 - **Code Generation** — use igniter and Ash generators
+- **MCP Usage** — prefer MCP tools over file reading for app state; use domain MCP to look up resources before writing code
 - **Umbrella Structure** — (if umbrella) which app owns what
-- **Feedback Loop** — compile, format, credo, test, tidewave eval, ash ai verify
+- **Feedback Loop** — compile, format, credo, test, tidewave eval, domain MCP verify; note that MCP failures likely mean Phoenix server isn't running
 - **Logging** — wide events / canonical log lines pattern
 
 Leave space after the hand-written sections for usage_rules to append its generated content.

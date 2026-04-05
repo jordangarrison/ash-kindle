@@ -83,12 +83,13 @@ The following sections are always included:
 
 1. **Ash First**
 2. **Code Generation**
-3. **Feedback Loop** (with Tidewave + Ash AI verification steps)
-4. **Logging** (wide events pattern)
+3. **MCP Usage** (prefer MCP tools for app state, use domain MCP before writing code)
+4. **Feedback Loop** (compile, format, credo, test, Tidewave eval, domain MCP verify + server-not-running guidance)
+5. **Logging** (wide events pattern)
 
 For umbrella projects, also include:
 
-5. **Umbrella Structure**
+6. **Umbrella Structure**
 
 ## Skills
 
