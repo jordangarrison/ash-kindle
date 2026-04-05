@@ -1,13 +1,14 @@
 ---
 name: ash-kindle
-description: Set up AI-assisted dev tooling (usage_rules, Tidewave, Ash AI, CLAUDE.md, skills, logging) for Ash/Phoenix projects. Use when creating a new Ash/Phoenix project or adding AI tooling to an existing one.
+description: Set up AI-assisted dev tooling (usage_rules, Tidewave, domain MCP, Ash AI, CLAUDE.md, skills, logging, browser testing) for Ash/Phoenix projects. Use when creating a new Ash/Phoenix project or adding AI tooling to an existing one.
 ---
 
 # Ash Kindle — AI Dev Environment Setup for Ash/Phoenix
 
 You are setting up the AI-assisted development environment for an Ash/Phoenix project.
-This includes: usage_rules, Tidewave MCP, Ash AI, CLAUDE.md, Claude Code skills, the
-logging-best-practices skill, and optionally direnv/Nix.
+This includes: usage_rules, Tidewave MCP, domain MCP (dev), Ash AI, CLAUDE.md, Claude
+Code skills, the logging-best-practices skill, and optionally browser testing and
+dev environment setup (devenv/flake/devbox).
 
 ## Step 0: Read References
 
