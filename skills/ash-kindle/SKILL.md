@@ -271,33 +271,30 @@ Create `.claude/skills/browser-testing/SKILL.md` with these sections:
 
 See `references/setup-guide.md` for the full template.
 
-## Step 10: Optional — devbox Setup
+## Step 10: Optional — Dev Environment
 
-If the user opted in (or `devbox.json` already exists), set up devbox with PostgreSQL.
-See `references/setup-guide.md` for full details.
+If the user opted in (or a dev environment config file was detected in Step 1), set
+up the dev environment. All three options use direnv.
 
-Key points:
-- Add `postgresql` package: `devbox add postgresql`
-- Run `devbox update` if warned about legacy format
-- Configure custom port in `devbox.json` `env` section (avoids conflicts with system PostgreSQL on 5432)
-- Create a root `process-compose.yml` to override the plugin's PostgreSQL process with custom port/socket
-- The `init_hook` should auto-run `initdb` and create the `postgres` role on first shell entry
-- Update `config/dev.exs` with matching port
-- The PostgreSQL socket directory must be set to the devbox virtenv path (the default
-  `/run/postgresql/` is not writable)
+Ask: "Which dev environment tool do you use?" (default to detected tool):
+- **devenv** — `devenv.nix` + direnv
+- **flake** — `flake.nix` + direnv
+- **devbox** — `devbox.json` + direnv
 
-## Step 11: Optional — direnv/Nix Setup
+### For all options:
 
-If the user opted in, create `.envrc`:
+1. Generate the appropriate `.envrc` (see `defaults.md` for templates)
+2. Document required packages: Elixir (>= 1.18), Erlang (>= 27), Node.js, PostgreSQL
+3. Note custom PostgreSQL port (5433 to avoid system conflicts)
+4. Update `config/dev.exs` with matching port if needed
 
-```bash
-use flake
-dotenv_if_exists
-```
+### Per-option details:
 
-And note that they'll need a `flake.nix` appropriate for their Elixir/Phoenix setup.
+- **devenv:** Generate `.envrc` only. Document that the user needs Elixir, Erlang, Node.js, PostgreSQL services in their `devenv.nix`, and should add `dotenv.enable = true` for `.env` support. User looks up devenv-specific syntax.
+- **flake:** Generate `.envrc` only. Document that the user needs Elixir, Erlang, Node.js, PostgreSQL in their flake outputs. User looks up Nix-specific syntax.
+- **devbox:** Generate full `devbox.json`, `process-compose.yml`, and `.envrc`. See `references/setup-guide.md` for the complete devbox config with PostgreSQL, init_hook, and convenience scripts.
 
-## Step 12: Verify
+## Step 11: Verify
 
 ```bash
 mix deps.get

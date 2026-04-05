@@ -465,12 +465,48 @@ Reviewers must understand what was tested without watching the GIF.]
 
 Replace `<app_name>`, `<AppName>`, and `<port>` with detected values.
 
-## 10. devbox Setup (Optional)
+## 10. Dev Environment (Optional)
 
-If the project uses devbox (has a `devbox.json`), PostgreSQL can be managed as a
-devbox service. This avoids requiring a system-wide PostgreSQL installation.
+All three options use direnv for shell integration.
 
-### Add PostgreSQL package
+### devenv
+
+Generate `.envrc`:
+```bash
+eval "$(devenv direnvrc)"
+use devenv
+```
+
+Document requirements for `devenv.nix`:
+- Packages: Elixir (>= 1.18), Erlang (>= 27), Node.js, PostgreSQL
+- Add `dotenv.enable = true` for `.env` file support
+- Configure PostgreSQL port to 5433 to avoid system conflicts
+- User looks up devenv syntax for package/service declarations
+
+### flake
+
+Generate `.envrc`:
+```bash
+use flake
+dotenv_if_exists
+```
+
+Document requirements for `flake.nix`:
+- Packages in flake outputs: Elixir (>= 1.18), Erlang (>= 27), Node.js, PostgreSQL
+- `dotenv_if_exists` handles `.env` loading (Nix flakes have no built-in support)
+- Configure PostgreSQL port to 5433 to avoid system conflicts
+- User looks up Nix syntax for package declarations
+
+### devbox
+
+Generate `.envrc`:
+```bash
+use devbox
+```
+
+devbox auto-loads `.env` from the project root.
+
+#### Add PostgreSQL package
 
 ```bash
 devbox add postgresql
@@ -478,9 +514,9 @@ devbox add postgresql
 
 If devbox warns about "legacy format", run `devbox update` to migrate the config.
 
-### Configure custom port
+#### Configure custom port
 
-Port 5432 is commonly used by a system PostgreSQL. Use a different port (e.g., 5433)
+Port 5432 is commonly used by a system PostgreSQL. Use port 5433
 to avoid conflicts. Configure via the `env` section in `devbox.json`:
 
 ```json
@@ -512,10 +548,9 @@ The `init_hook` automatically bootstraps the database on first `devbox shell` en
 - Creates a `postgres` superuser role
 - Sets the password to `postgres` (matching Phoenix dev defaults)
 
-### Override process-compose for PostgreSQL
+#### Override process-compose for PostgreSQL
 
-The devbox PostgreSQL plugin generates a `process-compose.yaml` that uses default
-port/socket paths. Create a root `process-compose.yml` to override with custom settings:
+Create a root `process-compose.yml` to override with custom settings:
 
 ```yaml
 version: "0.5"
@@ -534,10 +569,9 @@ processes:
 ```
 
 **Critical:** The PostgreSQL socket directory (`-k` flag) MUST point to the devbox
-virtenv path. The default `/run/postgresql/` is not writable by non-root users and
-will cause a "Permission denied" error on the lock file.
+virtenv path. The default `/run/postgresql/` is not writable by non-root users.
 
-### Update Phoenix dev config
+#### Update Phoenix dev config
 
 Add the matching port to `config/dev.exs`:
 
@@ -551,7 +585,7 @@ config :my_app, MyApp.Repo,
   # ...
 ```
 
-### Usage
+#### Usage
 
 ```bash
 devbox shell              # enters shell, runs init_hook on first use
@@ -560,35 +594,7 @@ mix ecto.create           # creates the database
 mix phx.server            # starts the Phoenix app
 ```
 
-## 11. direnv / Nix (Optional)
-
-direnv works well alongside devbox — use `use devbox` in `.envrc` to auto-activate
-the devbox environment when entering the directory. It also works with Nix flakes
-via `use flake`.
-
-Create `.envrc`:
-
-```bash
-use flake
-dotenv_if_exists
-```
-
-This assumes:
-- `direnv` is installed and hooked into the shell
-- For Nix: a `flake.nix` exists with the Elixir/Erlang/Node toolchain
-- For devbox: `devbox.json` exists (use `use devbox` instead of `use flake`)
-- The user may have a `.env` file for local secrets
-
-When using devbox with direnv, the `.envrc` should be:
-
-```bash
-use devbox
-dotenv_if_exists
-```
-
-This step is skipped by default since the setup varies per environment.
-
-## 12. Verification Checklist
+## 11. Verification Checklist
 
 After setup, confirm:
 

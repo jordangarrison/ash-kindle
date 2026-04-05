@@ -114,7 +114,40 @@ the deps serve (e.g., "scraper-pipeline", "api-client", etc.).
 npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices --yes
 ```
 
-## devbox
+## Dev Environment
+
+Default: **skip** if no config file detected; otherwise default to detected tool.
+
+### `.envrc` Templates
+
+**devenv:**
+```bash
+eval "$(devenv direnvrc)"
+use devenv
+```
+`.env` loading: via devenv `dotenv.enable = true` in `devenv.nix` (document as a requirement).
+
+**flake:**
+```bash
+use flake
+dotenv_if_exists
+```
+`.env` loading: via direnv `dotenv_if_exists`.
+
+**devbox:**
+```bash
+use devbox
+```
+`.env` loading: built-in (devbox auto-loads `.env` from project root).
+
+### Required Packages (all options)
+
+- Elixir >= 1.18
+- Erlang >= 27
+- Node.js
+- PostgreSQL (custom port 5433 recommended to avoid system conflicts)
+
+### devbox Full Config
 
 When devbox is detected or opted in, default PostgreSQL config:
 
@@ -123,21 +156,3 @@ When devbox is detected or opted in, default PostgreSQL config:
 - **init_hook:** auto-runs `initdb`, creates `postgres` role, sets password on first shell
 - **process-compose.yml:** overrides plugin default with custom port + socket path
 - **Convenience scripts:** `db:start`, `db:stop`
-
-## direnv
-
-Skipped by default. When opted in:
-
-```bash
-# .envrc
-use flake
-dotenv_if_exists
-```
-
-When using devbox with direnv, use `use devbox` instead of `use flake`:
-
-```bash
-# .envrc (with devbox)
-use devbox
-dotenv_if_exists
-```
