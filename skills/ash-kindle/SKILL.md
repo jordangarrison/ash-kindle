@@ -52,22 +52,27 @@ Present the user with what you'll set up:
 >
 > 1. **usage_rules** — CLAUDE.md generation + doc search from deps
 > 2. **Tidewave** — dev MCP server for runtime introspection (eval, logs, schemas)
-> 3. **Ash AI** — usage rules and MCP tooling for Ash resources
-> 4. **CLAUDE.md** — project instructions (Ash First, Feedback Loop, Logging)
-> 5. **Claude Code skills** — auto-generated from usage_rules config
-> 6. **logging-best-practices** — external skill for wide events pattern
-> 7. **devbox** — optional devbox setup with PostgreSQL service
-> 8. **direnv/.envrc** — optional Nix/direnv setup
+> 3. **Domain MCP** — dev-only MCP server exposing your Ash domain tools (requires Ash domains with resources)
+> 4. **Ash AI** — usage rules and MCP tooling for Ash resources
+> 5. **CLAUDE.md** — project instructions (Ash First, MCP Usage, Feedback Loop, Logging)
+> 6. **Claude Code skills** — auto-generated from usage_rules config
+> 7. **logging-best-practices** — external skill for wide events pattern
+> 8. **Browser testing** — optional GIF-recorded browser walkthrough skill (requires Claude-in-Chrome)
+> 9. **Dev environment** — optional setup for devenv, flake, or devbox with PostgreSQL
 >
 > Want to customize any of these, or are defaults fine?
 
 If the user says **defaults are fine**, proceed with all defaults from `defaults.md`.
+Default for Domain MCP: **yes** if Ash domains with resources are detected, **no** otherwise.
+Default for Browser testing: **no** (opt-in only).
+Default for Dev environment: **skip** if no config file detected, otherwise default to detected tool.
 
 If the user wants to **customize**, ask about each piece one at a time:
 - Which usage_rules to include (`:elixir`, `:otp`, `:phoenix`, others?)
 - Which skills to build (default: `ash-framework`; suggest others based on detected deps)
-- Whether to include devbox setup (with PostgreSQL)
-- Whether to include direnv/Nix setup
+- Whether to set up domain MCP (and which domain to wire first)
+- Whether to set up browser testing
+- Which dev environment tool to use (devenv, flake, or devbox)
 - Any additional CLAUDE.md sections
 
 ## Step 3: Install Dependencies
