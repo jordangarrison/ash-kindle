@@ -30,7 +30,7 @@ Determine:
 - What Phoenix port is configured? (default 4000)
 - Are there domain-specific deps beyond Ash? (Oban, Req, LangChain, etc.)
 - Which dev environment tool is in use? (check for `devenv.nix`, `flake.nix`, or `devbox.json`)
-- Is domain MCP already configured? (check for `AshAi.Mcp.Dev` in `endpoint.ex`, `"/dev/mcp"` in `router.ex`, and a non-tidewave entry in `.mcp.json` — if all three present, skip; if partially configured, warn the user and offer to complete setup)
+- Is domain MCP already configured? (check for `AshAi.Mcp.Dev` in `endpoint.ex`, `"/dev/mcp"` in `router.ex`, `@mcp_tools` module attribute in `router.ex`, and a non-tidewave entry in `.mcp.json` — if all four present, skip; if partially configured, warn the user and offer to complete setup)
 - Is browser testing already set up? (check for `.claude/skills/browser-testing/SKILL.md`)
 
 Use `mix.exs`, `config/config.exs`, and the project file structure to answer these.
@@ -96,6 +96,10 @@ add an explicit `plug` dependency** to resolve this:
 {:usage_rules, "~> 1.2", only: :dev, runtime: false}
 ```
 
+> **Note:** The `plug` dep may not be needed in umbrella projects if `tidewave`
+> and `ash_ai` live in separate child apps. Only add it if `mix deps.get`
+> reports an `:only` option conflict on `plug`.
+
 ### For the web app (or single app) mix.exs:
 
 ```elixir
@@ -138,6 +142,7 @@ See `defaults.md` for the default configuration. Adapt based on:
 
 In the `project/0` function, add:
 ```elixir
+# listeners required for usage_rules to auto-regenerate on code changes
 listeners: [Phoenix.CodeReloader],
 usage_rules: usage_rules()
 ```
@@ -158,15 +163,19 @@ end
 
 The domain MCP requires two pieces. See `references/setup-guide.md` for full details.
 
-**1. Endpoint plug:** Add `AshAi.Mcp.Dev` inside the `if code_reloading?` block in `endpoint.ex`, after `Phoenix.CodeReloader`:
+**1. Endpoint plug:** Add `AshAi.Mcp.Dev` inside the `if code_reloading?` block in `endpoint.ex`, before `Phoenix.LiveReloader` (per official AshAi docs):
 
 ```elixir
 if code_reloading? do
   socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
+
+  plug AshAi.Mcp.Dev,
+    protocol_version_statement: "2024-11-05",
+    otp_app: :my_app
+
   plug Phoenix.LiveReloader
   plug Phoenix.CodeReloader
   plug Phoenix.Ecto.CheckRepoStatus, otp_app: :my_app
-  plug AshAi.Mcp.Dev, otp_app: :my_app
 end
 ```
 
@@ -176,6 +185,7 @@ end
 scope "/dev/mcp" do
   forward "/", AshAi.Mcp.Router,
     tools: @mcp_tools,
+    protocol_version_statement: "2024-11-05",
     otp_app: :my_app,
     actor: %AshAi{}
 end
@@ -215,7 +225,7 @@ full template. The key sections are:
 - **Code Generation** — use igniter and Ash generators
 - **MCP Usage** — prefer MCP tools over file reading for app state; use domain MCP to look up resources before writing code
 - **Umbrella Structure** — (if umbrella) which app owns what
-- **Feedback Loop** — compile, format, credo, test, tidewave eval, domain MCP verify; note that MCP failures likely mean Phoenix server isn't running
+- **Feedback Loop** — compile, format, credo (if installed), test, tidewave eval, domain MCP verify; MCP failure troubleshooting (server not running, 404, empty tools, plug missing)
 - **Logging** — wide events / canonical log lines pattern
 
 Leave space after the hand-written sections for usage_rules to append its generated content.
@@ -260,7 +270,8 @@ this skill provides project-specific context.
 Create `.claude/skills/browser-testing/SKILL.md` with these sections:
 
 1. **Navigation Map** — table with Page, URL, Key Elements columns. Pre-fill with
-   detected routes (at minimum: `/`, `/dev/dashboard`, `/dev/mailbox`). Use the
+   detected routes (at minimum: `/`, `/dev/dashboard`, `/dev/mailbox`). Do not
+   include MCP endpoints (`/dev/mcp`) — they are not browser-renderable. Use the
    detected Phoenix port.
 2. **Seed Data Reference** — placeholder: "Fill in your test users and seed data here.
    List names, roles, and any notable state (e.g., overallocated users, edge cases)."

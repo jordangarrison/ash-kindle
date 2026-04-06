@@ -55,8 +55,9 @@ between `tidewave` (only: :dev) and `ash_json_api` (transitive via `ash_ai`).
 ### Domain MCP (default: yes if Ash domains detected)
 
 - Dev-only endpoint at `/dev/mcp`
-- Uses `AshAi.Mcp.Dev` plug in `endpoint.ex` (inside `code_reloading?` block)
+- Uses `AshAi.Mcp.Dev` plug in `endpoint.ex` (inside `code_reloading?` block, before `Phoenix.LiveReloader`)
 - Uses `AshAi.Mcp.Router` in `router.ex` (inside `dev_routes` guard)
+- Both plug and router include `protocol_version_statement: "2024-11-05"`
 - Actor: `%AshAi{}` (bypasses auth for dev use)
 - MCP URL: `http://localhost:<port>/dev/mcp`
 
@@ -84,7 +85,7 @@ The following sections are always included:
 1. **Ash First**
 2. **Code Generation**
 3. **MCP Usage** (prefer MCP tools for app state, use domain MCP before writing code)
-4. **Feedback Loop** (compile, format, credo, test, Tidewave eval, domain MCP verify + server-not-running guidance)
+4. **Feedback Loop** (compile, format, credo if installed, test, Tidewave eval, domain MCP verify + MCP failure troubleshooting)
 5. **Logging** (wide events pattern)
 
 For umbrella projects, also include:
@@ -124,8 +125,13 @@ Default: **skip** if no config file detected; otherwise default to detected tool
 ```bash
 eval "$(devenv direnvrc)"
 use devenv
+
+# Fallback until dotenv.enable = true is added to devenv.nix
+if [ -f .env ]; then
+  source .env
+fi
 ```
-`.env` loading: via devenv `dotenv.enable = true` in `devenv.nix` (document as a requirement).
+`.env` loading: via devenv `dotenv.enable = true` in `devenv.nix` (document as a requirement). The fallback `source .env` covers the gap before the user configures it.
 
 **flake:**
 ```bash

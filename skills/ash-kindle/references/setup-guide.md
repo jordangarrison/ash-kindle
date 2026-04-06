@@ -37,16 +37,23 @@ Umbrella projects have multiple `mix.exs` files. Dependencies go in specific pla
 defp deps do
   [
     # ... existing deps
+    {:plug, "~> 1.19"},
     {:usage_rules, "~> 1.2", only: :dev, runtime: false}
   ]
 end
 ```
+
+> **Note:** The explicit `plug` dep may not be needed in umbrella projects if
+> `tidewave` and `ash_ai` live in separate child apps (the `:only` conflict
+> only occurs when both are in the same `mix.exs`). Add it if `mix deps.get`
+> reports an `:only` option conflict on `plug`.
 
 Also add to the `project/0` function:
 ```elixir
 def project do
   [
     # ... existing config
+    # listeners required for usage_rules to auto-regenerate on code changes
     listeners: [Phoenix.CodeReloader],
     usage_rules: usage_rules()
   ]
@@ -109,6 +116,7 @@ And add to `project/0`:
 def project do
   [
     # ... existing config
+    # listeners required for usage_rules to auto-regenerate on code changes
     listeners: [Phoenix.CodeReloader],
     usage_rules: usage_rules()
   ]
@@ -179,10 +187,14 @@ defmodule MyAppWeb.Endpoint do
 
   if code_reloading? do
     socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
+
+    plug AshAi.Mcp.Dev,
+      protocol_version_statement: "2024-11-05",
+      otp_app: :my_app
+
     plug Phoenix.LiveReloader
     plug Phoenix.CodeReloader
     plug Phoenix.Ecto.CheckRepoStatus, otp_app: :my_app
-    plug AshAi.Mcp.Dev, otp_app: :my_app
   end
 
   plug MyAppWeb.Router
@@ -192,9 +204,10 @@ end
 The conditional `Code.ensure_loaded?/1` check ensures Tidewave is only loaded in dev
 where the dependency is available.
 
-`AshAi.Mcp.Dev` goes inside the `code_reloading?` block — this is the conventional
-location for dev-only plugs in Phoenix endpoints, and the block is positioned before
-body parsers in the standard pipeline.
+`AshAi.Mcp.Dev` goes inside the `code_reloading?` block, before `Phoenix.LiveReloader`
+and `Phoenix.CodeReloader` — this matches the official AshAi documentation placement.
+The `protocol_version_statement` option controls MCP protocol version negotiation with
+clients.
 
 ## 4. Domain MCP Router Setup
 
@@ -206,6 +219,7 @@ Add a `/dev/mcp` scope in `router.ex` inside the existing
 scope "/dev/mcp" do
   forward "/", AshAi.Mcp.Router,
     tools: @mcp_tools,
+    protocol_version_statement: "2024-11-05",
     otp_app: :my_app,
     actor: %AshAi{}
 end
@@ -327,14 +341,21 @@ for understanding application state:
 
 After every change:
 1. Run `mix compile` — fix all errors before proceeding
-2. Run `mix format --check` — fix formatting
-3. Run `mix credo --strict` — address all warnings
+2. Run `mix format --check-formatted` — fix formatting
+3. Run `mix credo --strict` — address all warnings (if credo is installed)
 4. Run `mix test` for affected modules
 5. Use Tidewave `project_eval` to verify runtime behaviour
 6. Use domain MCP tools to verify resource/domain state
 
-If an MCP call fails or times out, the Phoenix server may not be running.
-Remind the user to start it with `mix phx.server`.
+If an MCP call fails or times out:
+- **No response:** the Phoenix server may not be running — remind the user
+  to start it with `mix phx.server`
+- **404:** the route is not compiled in — check that `dev_routes` is enabled
+  in config
+- **Empty tools list:** verify the `@mcp_tools` list in `router.ex` matches
+  tool names declared in domains
+- **Tidewave works but domain MCP doesn't:** the `AshAi.Mcp.Dev` plug may
+  be missing from `endpoint.ex`
 
 If checks fail, self-correct and retry. After 5 failed attempts on the
 same issue, stop and summarise what was tried, then hand back to the human.
@@ -414,7 +435,6 @@ description: Use when manually testing <app_name> features in the browser with G
 | Home | http://localhost:<port>/ | Main landing page |
 | Dev Dashboard | http://localhost:<port>/dev/dashboard | Phoenix LiveDashboard |
 | Dev Mailbox | http://localhost:<port>/dev/mailbox | Email preview |
-| Dev MCP | http://localhost:<port>/dev/mcp | MCP server (verify with curl) |
 
 _Add your application-specific routes here._
 
@@ -475,6 +495,11 @@ Generate `.envrc`:
 ```bash
 eval "$(devenv direnvrc)"
 use devenv
+
+# Fallback until dotenv.enable = true is added to devenv.nix
+if [ -f .env ]; then
+  source .env
+fi
 ```
 
 Document requirements for `devenv.nix`:
