@@ -34,7 +34,7 @@ For **single app** projects, the same config goes in the app's `mix.exs`.
 
 | Package | Version | Where | Env |
 |---------|---------|-------|-----|
-| `plug` | `~> 1.19` | app (resolves tidewave/ash_json_api conflict) | all envs |
+| `plug` | `~> 1.19` | root (umbrella) or app (resolves tidewave/ash_json_api conflict) | all envs |
 | `ash` | `~> 3.0` | core app (umbrella) or app | all envs |
 | `ash_phoenix` | `~> 2.0` | web app (umbrella) or app | all envs |
 | `ash_postgres` | `~> 2.0` | core app (umbrella) or app | all envs |
@@ -45,10 +45,38 @@ For **single app** projects, the same config goes in the app's `mix.exs`.
 **Note:** The explicit `plug` dep is required to resolve a `:only` env conflict
 between `tidewave` (only: :dev) and `ash_json_api` (transitive via `ash_ai`).
 
-## Tidewave
+## MCP Servers
+
+### Tidewave
 
 - Port: whatever Phoenix is configured to use (default `4000`)
 - MCP URL: `http://localhost:<port>/tidewave/mcp`
+
+### Domain MCP (default: yes if Ash domains detected)
+
+- Dev-only endpoint at `/dev/mcp`
+- Uses `AshAi.Mcp.Dev` plug in `endpoint.ex` (inside `code_reloading?` block, before `Phoenix.LiveReloader`)
+- Uses `AshAi.Mcp.Router` in `router.ex` (inside `dev_routes` guard)
+- Both plug and router include `protocol_version_statement: "2024-11-05"`
+- Actor: `%AshAi{}` (bypasses auth for dev use)
+- MCP URL: `http://localhost:<port>/dev/mcp`
+
+### .mcp.json (with both servers)
+
+```json
+{
+  "mcpServers": {
+    "tidewave": {
+      "type": "http",
+      "url": "http://localhost:<port>/tidewave/mcp"
+    },
+    "<app_name>": {
+      "type": "http",
+      "url": "http://localhost:<port>/dev/mcp"
+    }
+  }
+}
+```
 
 ## CLAUDE.md Sections
 
@@ -56,12 +84,13 @@ The following sections are always included:
 
 1. **Ash First**
 2. **Code Generation**
-3. **Feedback Loop** (with Tidewave + Ash AI verification steps)
-4. **Logging** (wide events pattern)
+3. **MCP Usage** (prefer MCP tools for app state, use domain MCP before writing code)
+4. **Feedback Loop** (compile, format, credo if installed, test, Tidewave eval, domain MCP verify + MCP failure troubleshooting)
+5. **Logging** (wide events pattern)
 
 For umbrella projects, also include:
 
-5. **Umbrella Structure**
+6. **Umbrella Structure**
 
 ## Skills
 
@@ -86,7 +115,45 @@ the deps serve (e.g., "scraper-pipeline", "api-client", etc.).
 npx skills add https://github.com/boristane/agent-skills --skill logging-best-practices --yes
 ```
 
-## devbox
+## Dev Environment
+
+Default: **skip** if no config file detected; otherwise default to detected tool.
+
+### `.envrc` Templates
+
+**devenv:**
+```bash
+eval "$(devenv direnvrc)"
+use devenv
+
+# Fallback until dotenv.enable = true is added to devenv.nix
+if [ -f .env ]; then
+  source .env
+fi
+```
+`.env` loading: via devenv `dotenv.enable = true` in `devenv.nix` (document as a requirement). The fallback `source .env` covers the gap before the user configures it.
+
+**flake:**
+```bash
+use flake
+dotenv_if_exists
+```
+`.env` loading: via direnv `dotenv_if_exists`.
+
+**devbox:**
+```bash
+use devbox
+```
+`.env` loading: built-in (devbox auto-loads `.env` from project root).
+
+### Required Packages (all options)
+
+- Elixir >= 1.18
+- Erlang >= 27
+- Node.js
+- PostgreSQL (custom port 5433 recommended to avoid system conflicts)
+
+### devbox Full Config
 
 When devbox is detected or opted in, default PostgreSQL config:
 
@@ -95,21 +162,3 @@ When devbox is detected or opted in, default PostgreSQL config:
 - **init_hook:** auto-runs `initdb`, creates `postgres` role, sets password on first shell
 - **process-compose.yml:** overrides plugin default with custom port + socket path
 - **Convenience scripts:** `db:start`, `db:stop`
-
-## direnv
-
-Skipped by default. When opted in:
-
-```bash
-# .envrc
-use flake
-dotenv_if_exists
-```
-
-When using devbox with direnv, use `use devbox` instead of `use flake`:
-
-```bash
-# .envrc (with devbox)
-use devbox
-dotenv_if_exists
-```

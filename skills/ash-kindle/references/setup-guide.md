@@ -37,16 +37,23 @@ Umbrella projects have multiple `mix.exs` files. Dependencies go in specific pla
 defp deps do
   [
     # ... existing deps
+    {:plug, "~> 1.19"},
     {:usage_rules, "~> 1.2", only: :dev, runtime: false}
   ]
 end
 ```
+
+> **Note:** The explicit `plug` dep may not be needed in umbrella projects if
+> `tidewave` and `ash_ai` live in separate child apps (the `:only` conflict
+> only occurs when both are in the same `mix.exs`). Add it if `mix deps.get`
+> reports an `:only` option conflict on `plug`.
 
 Also add to the `project/0` function:
 ```elixir
 def project do
   [
     # ... existing config
+    # listeners required for usage_rules to auto-regenerate on code changes
     listeners: [Phoenix.CodeReloader],
     usage_rules: usage_rules()
   ]
@@ -109,6 +116,7 @@ And add to `project/0`:
 def project do
   [
     # ... existing config
+    # listeners required for usage_rules to auto-regenerate on code changes
     listeners: [Phoenix.CodeReloader],
     usage_rules: usage_rules()
   ]
@@ -164,7 +172,7 @@ skills: [
 ## 3. Tidewave Endpoint Setup
 
 In the web app's `endpoint.ex`, add the Tidewave plug. It must go **before** the
-router plug but **after** static file serving:
+`if code_reloading?` block:
 
 ```elixir
 defmodule MyAppWeb.Endpoint do
@@ -177,6 +185,18 @@ defmodule MyAppWeb.Endpoint do
     plug Tidewave
   end
 
+  if code_reloading? do
+    socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
+
+    plug AshAi.Mcp.Dev,
+      protocol_version_statement: "2024-11-05",
+      otp_app: :my_app
+
+    plug Phoenix.LiveReloader
+    plug Phoenix.CodeReloader
+    plug Phoenix.Ecto.CheckRepoStatus, otp_app: :my_app
+  end
+
   plug MyAppWeb.Router
 end
 ```
@@ -184,7 +204,70 @@ end
 The conditional `Code.ensure_loaded?/1` check ensures Tidewave is only loaded in dev
 where the dependency is available.
 
-## 4. MCP Configuration
+`AshAi.Mcp.Dev` goes inside the `code_reloading?` block, before `Phoenix.LiveReloader`
+and `Phoenix.CodeReloader` — this matches the official AshAi documentation placement.
+The `protocol_version_statement` option controls MCP protocol version negotiation with
+clients.
+
+## 4. Domain MCP Router Setup
+
+Add a `/dev/mcp` scope in `router.ex` inside the existing
+`if Application.compile_env(:my_app, :dev_routes)` guard:
+
+```elixir
+# Inside the existing dev_routes guard block
+scope "/dev/mcp" do
+  forward "/", AshAi.Mcp.Router,
+    tools: @mcp_tools,
+    protocol_version_statement: "2024-11-05",
+    otp_app: :my_app,
+    actor: %AshAi{}
+end
+```
+
+`%AshAi{}` is a struct provided by the `ash_ai` package that acts as an unrestricted
+actor — it bypasses all policy checks. This is safe because the route only exists when
+`dev_routes` is enabled.
+
+### Domain Tool Declarations
+
+Tools are declared in Ash domains using `tools do` blocks. The domain declares what
+tools exist; the router controls which are exposed via a `@mcp_tools` module attribute.
+
+```elixir
+# In the Ash domain (e.g., MyApp.Planning)
+use Ash.Domain, otp_app: :my_app, extensions: [AshAi]
+
+tools do
+  tool(:lookup_items, MyApp.Planning.Item, :read,
+    description: "Look up planning items by name or status."
+  )
+end
+```
+
+```elixir
+# In router.ex — module attribute listing exposed tools
+@mcp_tools [
+  :lookup_items
+]
+```
+
+### MCP Resources (optional)
+
+Domains can also expose browsable data via `mcp_resources`:
+
+```elixir
+mcp_resources do
+  mcp_resource(:active_items, "myapp://items/active",
+    MyApp.Planning.Item, :mcp_active_items,
+    title: "Active Items",
+    description: "All currently active items.",
+    mime_type: "application/json"
+  )
+end
+```
+
+## 5. MCP Configuration
 
 Create `.mcp.json` in the project root:
 
@@ -194,12 +277,20 @@ Create `.mcp.json` in the project root:
     "tidewave": {
       "type": "http",
       "url": "http://localhost:4000/tidewave/mcp"
+    },
+    "my_app": {
+      "type": "http",
+      "url": "http://localhost:4000/dev/mcp"
     }
   }
 }
 ```
 
-Adjust the port if the Phoenix app uses a non-standard port.
+Adjust the port if the Phoenix app uses a non-standard port. Omit the domain MCP
+entry if no Ash domains with resources exist.
+
+The domain MCP at `/dev/mcp` is only available when `dev_routes` is enabled. The
+`.mcp.json` is only used by Claude Code during local development, so this is fine.
 
 Claude Code reads this file to discover MCP servers. When the Phoenix server is
 running in dev, Tidewave provides these tools:
@@ -213,7 +304,10 @@ running in dev, Tidewave provides these tools:
 - `search_package_docs` — search hex package documentation
 - `get_docs` — get docs for specific modules/functions
 
-## 5. CLAUDE.md Template
+The domain MCP provides access to whatever tools are declared in your Ash domains
+(e.g., looking up resources, triggering actions).
+
+## 6. CLAUDE.md Template
 
 The CLAUDE.md file has two parts:
 1. **Hand-written sections** (project-specific guidance)
@@ -233,15 +327,35 @@ search docs with `mix usage_rules.search_docs`.
 Use `mix igniter.install` and Ash generators as a starting point wherever
 possible. Modify generated code rather than writing from scratch.
 
+## MCP Usage
+
+When the Phoenix server is running, prefer MCP tools over reading files
+for understanding application state:
+- Use domain MCP tools to look up existing resources, actions, and
+  relationships before writing new code
+- Use Tidewave `project_eval` to test expressions against the running app
+- Use Tidewave `get_ash_resources` / `get_ecto_schemas` to discover
+  what's already defined
+
 ## Feedback Loop
 
 After every change:
 1. Run `mix compile` — fix all errors before proceeding
-2. Run `mix format --check` — fix formatting
-3. Run `mix credo --strict` — address all warnings
+2. Run `mix format --check-formatted` — fix formatting
+3. Run `mix credo --strict` — address all warnings (if credo is installed)
 4. Run `mix test` for affected modules
 5. Use Tidewave `project_eval` to verify runtime behaviour
-6. Use Ash AI MCP to verify resource/domain state
+6. Use domain MCP tools to verify resource/domain state
+
+If an MCP call fails or times out:
+- **No response:** the Phoenix server may not be running — remind the user
+  to start it with `mix phx.server`
+- **404:** the route is not compiled in — check that `dev_routes` is enabled
+  in config
+- **Empty tools list:** verify the `@mcp_tools` list in `router.ex` matches
+  tool names declared in domains
+- **Tidewave works but domain MCP doesn't:** the `AshAi.Mcp.Dev` plug may
+  be missing from `endpoint.ex`
 
 If checks fail, self-correct and retry. After 5 failed attempts on the
 same issue, stop and summarise what was tried, then hand back to the human.
@@ -265,7 +379,7 @@ throughout a function.
 
 Replace `<core_app>` and `<web_app>` with actual app names.
 
-## 6. Generation
+## 7. Generation
 
 After all configuration is in place:
 
@@ -282,7 +396,7 @@ This generates:
 - Usage rules content appended to CLAUDE.md (between `<!-- usage-rules-start -->` and `<!-- usage-rules-end -->` markers)
 - Skill files in `.claude/skills/` based on the `build` config
 
-## 7. External Skills
+## 8. External Skills
 
 Install the logging best practices skill:
 
@@ -297,12 +411,127 @@ non-interactive execution.
 This provides Claude with guidance on the wide events / canonical log lines pattern
 referenced in the CLAUDE.md Logging section.
 
-## 8. devbox Setup (Optional)
+## 9. Browser Testing Setup (Optional)
 
-If the project uses devbox (has a `devbox.json`), PostgreSQL can be managed as a
-devbox service. This avoids requiring a system-wide PostgreSQL installation.
+If the user opted in, generate a project-specific browser testing skill at
+`.claude/skills/browser-testing/SKILL.md`. This complements the generic
+`browser-testing-walkthrough` external skill (installed in step 8) with
+project-specific context.
 
-### Add PostgreSQL package
+### Template
+
+````markdown
+---
+name: browser-testing
+description: Use when manually testing <app_name> features in the browser with GIF recording.
+---
+
+# Browser Testing — <AppName>
+
+## Navigation Map
+
+| Page | URL | Key Elements |
+|------|-----|--------------|
+| Home | http://localhost:<port>/ | Main landing page |
+| Dev Dashboard | http://localhost:<port>/dev/dashboard | Phoenix LiveDashboard |
+| Dev Mailbox | http://localhost:<port>/dev/mailbox | Email preview |
+
+_Add your application-specific routes here._
+
+## Seed Data Reference
+
+Fill in your test users and seed data here. List names, roles, and any
+notable state (e.g., overallocated users, edge cases).
+
+Example format:
+| User | Role | Notable State |
+|------|------|---------------|
+| Alice | Admin | Full access |
+| Bob | Member | Limited permissions |
+
+## Tool Quick Reference
+
+| Action | Tool | Example |
+|--------|------|---------|
+| Go to URL | `navigate` | `navigate "http://localhost:<port>/"` |
+| Click element | `computer` | `left_click` at coordinates |
+| Capture frame | `screenshot` | Each screenshot = 1 GIF frame |
+| Zoom detail | `computer` | `region` + `zoom` (NOT a GIF frame) |
+| Find target | `find` | Natural language description |
+| Type text | `type` | Text input into focused field |
+
+## GIF Budget
+
+- **50 frames max** per recording
+- **8-10 frames** per flow for context
+- **3-5 flows** total per session
+- Use `zoom` freely — it doesn't consume frames
+
+## PR Comment Template
+
+```markdown
+## Browser Walkthrough
+
+**What was tested:**
+- [ ] Flow 1: [describe what you navigated and verified]
+- [ ] Flow 2: [describe what you navigated and verified]
+
+**Summary:** [Written description of what was validated and any issues found.
+Reviewers must understand what was tested without watching the GIF.]
+
+![Walkthrough](path/to/recording.gif)
+```
+````
+
+Replace `<app_name>`, `<AppName>`, and `<port>` with detected values.
+
+## 10. Dev Environment (Optional)
+
+All three options use direnv for shell integration.
+
+### devenv
+
+Generate `.envrc`:
+```bash
+eval "$(devenv direnvrc)"
+use devenv
+
+# Fallback until dotenv.enable = true is added to devenv.nix
+if [ -f .env ]; then
+  source .env
+fi
+```
+
+Document requirements for `devenv.nix`:
+- Packages: Elixir (>= 1.18), Erlang (>= 27), Node.js, PostgreSQL
+- Add `dotenv.enable = true` for `.env` file support
+- Configure PostgreSQL port to 5433 to avoid system conflicts
+- User looks up devenv syntax for package/service declarations
+
+### flake
+
+Generate `.envrc`:
+```bash
+use flake
+dotenv_if_exists
+```
+
+Document requirements for `flake.nix`:
+- Packages in flake outputs: Elixir (>= 1.18), Erlang (>= 27), Node.js, PostgreSQL
+- `dotenv_if_exists` handles `.env` loading (Nix flakes have no built-in support)
+- Configure PostgreSQL port to 5433 to avoid system conflicts
+- User looks up Nix syntax for package declarations
+
+### devbox
+
+Generate `.envrc`:
+```bash
+use devbox
+```
+
+devbox auto-loads `.env` from the project root.
+
+#### Add PostgreSQL package
 
 ```bash
 devbox add postgresql
@@ -310,9 +539,9 @@ devbox add postgresql
 
 If devbox warns about "legacy format", run `devbox update` to migrate the config.
 
-### Configure custom port
+#### Configure custom port
 
-Port 5432 is commonly used by a system PostgreSQL. Use a different port (e.g., 5433)
+Port 5432 is commonly used by a system PostgreSQL. Use port 5433
 to avoid conflicts. Configure via the `env` section in `devbox.json`:
 
 ```json
@@ -344,10 +573,9 @@ The `init_hook` automatically bootstraps the database on first `devbox shell` en
 - Creates a `postgres` superuser role
 - Sets the password to `postgres` (matching Phoenix dev defaults)
 
-### Override process-compose for PostgreSQL
+#### Override process-compose for PostgreSQL
 
-The devbox PostgreSQL plugin generates a `process-compose.yaml` that uses default
-port/socket paths. Create a root `process-compose.yml` to override with custom settings:
+Create a root `process-compose.yml` to override with custom settings:
 
 ```yaml
 version: "0.5"
@@ -366,10 +594,9 @@ processes:
 ```
 
 **Critical:** The PostgreSQL socket directory (`-k` flag) MUST point to the devbox
-virtenv path. The default `/run/postgresql/` is not writable by non-root users and
-will cause a "Permission denied" error on the lock file.
+virtenv path. The default `/run/postgresql/` is not writable by non-root users.
 
-### Update Phoenix dev config
+#### Update Phoenix dev config
 
 Add the matching port to `config/dev.exs`:
 
@@ -383,7 +610,7 @@ config :my_app, MyApp.Repo,
   # ...
 ```
 
-### Usage
+#### Usage
 
 ```bash
 devbox shell              # enters shell, runs init_hook on first use
@@ -392,47 +619,24 @@ mix ecto.create           # creates the database
 mix phx.server            # starts the Phoenix app
 ```
 
-## 9. direnv / Nix (Optional)
-
-direnv works well alongside devbox — use `use devbox` in `.envrc` to auto-activate
-the devbox environment when entering the directory. It also works with Nix flakes
-via `use flake`.
-
-Create `.envrc`:
-
-```bash
-use flake
-dotenv_if_exists
-```
-
-This assumes:
-- `direnv` is installed and hooked into the shell
-- For Nix: a `flake.nix` exists with the Elixir/Erlang/Node toolchain
-- For devbox: `devbox.json` exists (use `use devbox` instead of `use flake`)
-- The user may have a `.env` file for local secrets
-
-When using devbox with direnv, the `.envrc` should be:
-
-```bash
-use devbox
-dotenv_if_exists
-```
-
-This step is skipped by default since the setup varies per environment.
-
-## 10. Verification Checklist
+## 11. Verification Checklist
 
 After setup, confirm:
 
 - [ ] `mix deps.get` succeeds
 - [ ] `mix compile` succeeds with no warnings
 - [ ] `mix format --check-formatted` passes
-- [ ] `CLAUDE.md` exists with hand-written + generated sections
+- [ ] `CLAUDE.md` exists with hand-written + generated sections (including MCP Usage)
 - [ ] `.claude/skills/ash-framework/` directory exists with generated skill
 - [ ] `.mcp.json` exists with Tidewave config
+- [ ] (If domain MCP) `.mcp.json` also includes domain MCP entry
+- [ ] (If domain MCP) `AshAi.Mcp.Dev` is in `endpoint.ex` and `/dev/mcp` scope is in `router.ex`
 - [ ] `logging-best-practices` skill is installed
+- [ ] (If browser testing) `browser-testing-walkthrough` external skill is installed
+- [ ] (If browser testing) `.claude/skills/browser-testing/SKILL.md` exists with project-specific content
+- [ ] (If dev environment) `.envrc` exists with correct content for chosen tool (devenv/flake/devbox)
 - [ ] (If devbox) `devbox.json` has PostgreSQL package, env vars, init_hook, and scripts
 - [ ] (If devbox) `process-compose.yml` exists with custom port/socket config
 - [ ] (If devbox) `config/dev.exs` has matching PostgreSQL port
-- [ ] (If direnv) `.envrc` exists
 - [ ] Starting the Phoenix server (`mix phx.server`) makes Tidewave available at the configured URL
+- [ ] (If domain MCP) Domain MCP accessible at `/dev/mcp` when Phoenix server is running
