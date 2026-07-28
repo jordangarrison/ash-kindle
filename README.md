@@ -52,15 +52,16 @@ For a four-perspective review of an Ash/Phoenix pull request, ask:
 
 > Run an Ash PR review team on this pull request
 
-The `ash-pr-review-team` skill dispatches Ash, LiveView/UI, security, and
-performance/SRE reviewers in parallel, then consolidates their evidence. It is
-a global fallback: when a repository provides a project-local PR review skill,
-that local workflow takes precedence unless you explicitly invoke
-`$ash-pr-review-team`.
+The `ash-pr-review-team` skill dispatches independent Ash, LiveView/UI,
+security, and performance/SRE reviewers with the concurrency available, then
+consolidates their evidence. It is a global fallback: when the target
+repository provides a project-local PR review skill, that local workflow takes
+precedence unless you explicitly invoke `$ash-pr-review-team`.
 
-Pass `--skip-validation` for a static-only fast review. This skips optional
-tests and documentation lookup while retaining exact diff/head checks, the full
-preview, and explicit posting sign-off.
+Pass `--skip-user-confirmation` to authorize posting the completed review
+without pausing for final GitHub posting sign-off. The flag does not reduce
+review validation, waive other action approvals, or skip diff/head and
+inline-anchor checks.
 
 ## Defaults
 

@@ -9,7 +9,7 @@ Repository root: {REPO_ROOT}
 Base: {BASE_REF} at {BASE_SHA}
 Head: {BRANCH} at {HEAD_SHA}
 Diff range: {DIFF_RANGE}
-Validation policy: {VALIDATION_POLICY}
+Validation mode: {VALIDATION_MODE}
 
 PR summary:
 {PR_SUMMARY}
@@ -20,9 +20,11 @@ Files to review:
 Read the exact diff range from the repository root plus relevant surrounding
 code and tests. Report only issues introduced by that range. For every finding,
 include introduced-vs-pre-existing status, file and line evidence, impact,
-concrete fix, validation performed, and confidence. Follow the validation
-policy exactly; when validation is skipped, use static evidence only and say
-that no independent validation was run. Do not post anywhere.
+concrete fix, validation performed, and confidence. Consult primary
+documentation and run focused safe checks when needed. Do not execute
+PR-controlled code unless trust has been established and the execution
+environment is appropriately isolated. Follow the resolved validation mode
+consistently. Do not post anywhere.
 
 Focus on resource design, domain registration, policy correctness, actions,
 relationships, forms, and idiomatic Ash patterns.
