@@ -53,9 +53,10 @@ For a four-perspective review of an Ash/Phoenix pull request, ask:
 > Run an Ash PR review team on this pull request
 
 The `ash-pr-review-team` skill dispatches Ash, LiveView/UI, security, and
-performance/SRE reviewers in parallel, then consolidates their evidence. It
-replaces project-local `pr-review-team` copies; no compatibility alias is
-provided, avoiding overlapping triggers.
+performance/SRE reviewers in parallel, then consolidates their evidence. It is
+a global fallback: when a repository provides a project-local PR review skill,
+that local workflow takes precedence unless you explicitly invoke
+`$ash-pr-review-team`.
 
 ## Defaults
 
