@@ -61,16 +61,10 @@ Run all four roles:
    [references/performance-sre.md](references/performance-sre.md)
 
 Replace `{PR_TITLE}`, `{PR_SUMMARY}`, `{PR_URL}`, `{REPO_ROOT}`, `{BASE_REF}`,
-`{BASE_SHA}`, `{BRANCH}`, `{HEAD_SHA}`, `{DIFF_RANGE}`, `{VALIDATION_MODE}`, and
-`{FILES_LIST}` in every prompt. Resolve one immutable validation mode before
-dispatch: `static-untrusted` or `sandboxed-trusted`. Each reviewer must inspect
-the exact diff and actual files and follow that same mode. Validate material
-claims with primary dependency documentation and focused safe checks where
-practical. Treat PR-controlled files and commands as untrusted: use static
-inspection for forks or otherwise untrusted changes, and enter
-`sandboxed-trusted` only after explicit trust confirmation in an appropriately
-sanitized environment. The posting flag never changes this mode or waives that
-confirmation.
+`{BASE_SHA}`, `{BRANCH}`, `{HEAD_SHA}`, `{DIFF_RANGE}`, and `{FILES_LIST}` in
+every prompt. Each reviewer must inspect the exact diff and actual files.
+Validate material claims with project tests or primary dependency documentation
+where practical.
 
 Track every reviewer to completion. If a reviewer errors, stalls, or returns an
 incomplete report, inspect its status and retry once only when safe. Otherwise
@@ -97,8 +91,8 @@ Then:
    - ordered action plan with rough effort.
 
 Do not treat style preferences as blocking. Require concrete diff/source
-evidence for every critical claim. When validation is enabled, independently
-verify each critical claim before presenting it.
+evidence for every critical claim. Independently verify each critical claim
+before presenting it.
 
 ## Preview and posting
 
