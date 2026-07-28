@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ash PR review team"
+  short_description: "Run four expert Ash and Phoenix reviewers"
+  default_prompt: "Use $ash-pr-review-team to review the current Ash/Phoenix pull request with four parallel experts."
