@@ -1,6 +1,8 @@
 # ash-kindle
 
-A Claude Code skill that sets up AI-assisted development tooling for [Ash](https://ash-hq.org/) / [Phoenix](https://www.phoenixframework.org/) projects.
+Portable agent skills for AI-assisted development in
+[Ash](https://ash-hq.org/) and
+[Phoenix](https://www.phoenixframework.org/) projects.
 
 ## What It Sets Up
 
@@ -20,6 +22,20 @@ A Claude Code skill that sets up AI-assisted development tooling for [Ash](https
 npx skills add https://github.com/jordangarrison/ash-kindle --skill ash-kindle
 ```
 
+Install the parallel Ash/Phoenix PR reviewer:
+
+```bash
+npx skills add https://github.com/jordangarrison/ash-kindle \
+  --skill ash-pr-review-team
+```
+
+Install globally for every supported agent:
+
+```bash
+npx skills add jordangarrison/ash-kindle -g -a '*' \
+  --skill ash-pr-review-team -y
+```
+
 ## Usage
 
 In any Ash/Phoenix project, tell Claude:
@@ -31,6 +47,21 @@ Or invoke directly:
 > /ash-kindle
 
 Claude will detect your project structure (umbrella vs single app, existing domains, Phoenix port) and walk you through the setup. Accept defaults for the standard config, or customize each piece.
+
+For a four-perspective review of an Ash/Phoenix pull request, ask:
+
+> Run an Ash PR review team on this pull request
+
+The `ash-pr-review-team` skill dispatches independent Ash, LiveView/UI,
+security, and performance/SRE reviewers with the concurrency available, then
+consolidates their evidence. It is a global fallback: when the target
+repository provides a project-local PR review skill, that local workflow takes
+precedence unless you explicitly invoke `$ash-pr-review-team`.
+
+Pass `--skip-user-confirmation` to authorize posting the completed review
+without pausing for final GitHub posting sign-off. The flag does not reduce
+review validation, waive other action approvals, or skip diff/head and
+inline-anchor checks.
 
 ## Defaults
 
@@ -46,6 +77,6 @@ When you accept defaults, ash-kindle configures:
 ## Requirements
 
 - An Ash/Phoenix project (new or existing)
-- Claude Code
+- An Agent Skills-compatible coding agent
 - Node.js/npx (for external skill installation)
 - Hex packages available
