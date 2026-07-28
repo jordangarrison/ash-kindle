@@ -58,6 +58,10 @@ a global fallback: when a repository provides a project-local PR review skill,
 that local workflow takes precedence unless you explicitly invoke
 `$ash-pr-review-team`.
 
+Pass `--skip-validation` for a static-only fast review. This skips optional
+tests and documentation lookup while retaining exact diff/head checks, the full
+preview, and explicit posting sign-off.
+
 ## Defaults
 
 When you accept defaults, ash-kindle configures:

@@ -8,6 +8,7 @@ Repository root: {REPO_ROOT}
 Base: {BASE_REF} at {BASE_SHA}
 Head: {BRANCH} at {HEAD_SHA}
 Diff range: {DIFF_RANGE}
+Validation policy: {VALIDATION_POLICY}
 
 PR summary:
 {PR_SUMMARY}
@@ -18,7 +19,9 @@ Files to review:
 Read the exact diff range from the repository root plus relevant surrounding
 code and tests. Report only issues introduced by that range. For every finding,
 include introduced-vs-pre-existing status, file and line evidence, impact,
-concrete fix, validation performed, and confidence. Do not post anywhere.
+concrete fix, validation performed, and confidence. Follow the validation
+policy exactly; when validation is skipped, use static evidence only and say
+that no independent validation was run. Do not post anywhere.
 
 Focus on authorization, validation, injection, race conditions, PubSub
 boundaries, data exposure, and OWASP risks.

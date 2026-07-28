@@ -17,6 +17,14 @@ repository. If it provides a project-local PR review workflow such as
 Continue with this global fallback only when no local workflow exists or the
 user explicitly invokes `$ash-pr-review-team`.
 
+## Flags
+
+Accept `--skip-validation` as an explicit fast-review flag. It skips optional
+project test commands, focused runtime checks, and external documentation
+lookup. It does not skip exact diff inspection, introduced-versus-pre-existing
+attribution, reviewer completion checks, PR state/head rechecks, final preview,
+or posting sign-off.
+
 ## Gather context
 
 Resolve PR title, body, URL, repository root, base ref and SHA, head ref and SHA,
@@ -43,9 +51,12 @@ Launch these reviewers together:
    [references/performance-sre.md](references/performance-sre.md)
 
 Replace `{PR_TITLE}`, `{PR_SUMMARY}`, `{PR_URL}`, `{REPO_ROOT}`, `{BASE_REF}`,
-`{BASE_SHA}`, `{BRANCH}`, `{HEAD_SHA}`, `{DIFF_RANGE}`, and `{FILES_LIST}` in
-every prompt. Each reviewer must inspect the exact diff and actual files, then
-verify claims with project tests or official dependency docs where practical.
+`{BASE_SHA}`, `{BRANCH}`, `{HEAD_SHA}`, `{DIFF_RANGE}`, `{FILES_LIST}`, and
+`{VALIDATION_POLICY}` in every prompt. Each reviewer must inspect the exact diff
+and actual files. By default, validate material claims with project tests or
+primary dependency documentation where practical. With `--skip-validation`,
+use static diff and surrounding-code evidence only and label findings as not
+independently validated.
 
 Track every reviewer to completion. If a reviewer errors, stalls, or returns an
 incomplete report, inspect its status and retry once only when safe. Otherwise
@@ -70,5 +81,13 @@ Then:
    - positives;
    - ordered action plan with rough effort.
 
-Do not treat style preferences as blocking. Independently verify every critical
-claim before presenting it.
+Do not treat style preferences as blocking. Require concrete diff/source
+evidence for every critical claim. When validation is enabled, independently
+verify each critical claim before presenting it.
+
+## Preview and posting
+
+Show the complete verdict, body, and any inline comments before posting. When
+`--skip-validation` was used, state that prominently in the body and preview.
+Require explicit sign-off, then re-fetch PR state and head SHA immediately
+before posting. Never post if the PR closed, merged, or changed after sign-off.
